@@ -1,0 +1,269 @@
+Add-Type -Name Window -Namespace Console -MemberDefinition '
+[DllImport("Kernel32.dll")]
+public static extern IntPtr GetConsoleWindow();
+
+[DllImport("user32.dll")]
+public static extern bool ShowWindow(IntPtr hWnd, Int32 nCmdShow);
+'
+function Hide-Console
+{
+    $consolePtr = [Console.Window]::GetConsoleWindow()
+    [Console.Window]::ShowWindow($consolePtr, 0)
+}
+Hide-Console
+
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+
+if ((!([System.IO.File]::Exists('C:\Temp\storageinfo.xlsx'))) -or (!([System.IO.File]::Exists('C:\Temp\zones.csv'))))
+{
+$client = new-object System.Net.WebClient
+$client.Credentials = Get-Credential
+$client.DownloadFile("Add the location of sharepoint excel file contains storage info,“C:\Temp\storageinfo.xlsx)
+$client.DownloadFile("Add the location of sharepoint excel csv file contains zone info",“C:\Temp\zones.csv”)
+Start-Sleep 1
+#========================================================Auto-Resync script starts here============================================================================
+If (!(Get-ScheduledTask -TaskName Snapshot_Support_excel))
+{
+$action = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument '-NoProfile -WindowStyle Hidden -command "& {$Excel = New-Object -ComObject Excel.Application
+$Workbook = $Excel.Workbooks.Open("C:\Temp\storageinfo.xlsx")
+$Excel.Visible = $False
+$conn = $Workbook.Connections
+$Workbook.RefreshAll()
+while($conn | ForEach-Object {if($_.OLEDBConnection.Refreshing){$true}}){
+    Start-Sleep -Seconds 1
+}
+$excel.DisplayAlerts = $false
+$workbook.Save()
+$Workbook.Close()
+$Excel.Quit()
+#Get-Date | Out-File -FilePath C:\Temp\Script_status.txt}"' 
+$trigger = New-ScheduledTaskTrigger -Daily -At 1PM
+Register-ScheduledTask -Action $action -Trigger $trigger -TaskName "Snapshot_Support_excel" -Description "Snapshot status"
+[System.Windows.MessageBox]::Show('Scheduler Task Created','Success')
+}
+Else
+{
+Write-Host "Exists"
+}
+#==============================================================SCRIPT ENDS HERE=======================================================================================
+New-Item C:\Temp\output.txt
+}
+
+DO{
+$path = "C:\Temp\AS_from_Sharepoint.xlsx"
+$form = New-Object System.Windows.Forms.Form
+$form.Text = 'Device Finder'
+$form.Size = New-Object System.Drawing.Size(300,200)
+$form.StartPosition = 'CenterScreen'
+
+$okButton = New-Object System.Windows.Forms.Button
+$okButton.Location = New-Object System.Drawing.Point(10,120)
+$okButton.Size = New-Object System.Drawing.Size(75,23)
+$okButton.Text = 'OK'
+$okButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
+$okButton.Font = New-Object System.Drawing.Font("Verdana",8,[System.Drawing.FontStyle]::Regular)
+$form.AcceptButton = $okButton
+$form.Controls.Add($okButton)
+
+$Browse = New-Object System.Windows.Forms.Button
+$Browse.Location = New-Object System.Drawing.Point(200,120)
+$Browse.Size = New-Object System.Drawing.Size(75,23)
+$Browse.Text = 'Browse'
+$Browse.DialogResult = [System.Windows.Forms.DialogResult]::Yes
+$Browse.BackColor = '#CCCC99'
+$Browse.Font = New-Object System.Drawing.Font("Verdana",9,[System.Drawing.FontStyle]::Italic)
+$form.Controls.Add($Browse)
+
+$cancelButton = New-Object System.Windows.Forms.Button
+$cancelButton.Location = New-Object System.Drawing.Point(105,120)
+$cancelButton.Size = New-Object System.Drawing.Size(75,23)
+$cancelButton.Text = 'Cancel'
+$cancelButton.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+$cancelButton.Font = New-Object System.Drawing.Font("Verdana",8,[System.Drawing.FontStyle]::Regular)
+$form.CancelButton = $cancelButton
+$form.Controls.Add($cancelButton)
+
+$label = New-Object System.Windows.Forms.Label
+$label.Location = New-Object System.Drawing.Point(30,20)
+$label.Size = New-Object System.Drawing.Size(280,20)
+$label.Text = 'Enter the Device details to search:'
+$form.Controls.Add($label)
+
+$textBox = New-Object System.Windows.Forms.TextBox
+$textBox.Location = New-Object System.Drawing.Point(10,40)
+$textBox.Size = New-Object System.Drawing.Size(260,100)
+$form.Controls.Add($textBox)
+$form.Topmost = $true
+$form.Add_Shown({$textBox.Select()})
+$result = $form.ShowDialog()
+
+if ($result -eq [System.Windows.Forms.DialogResult]::Yes)
+{
+ $openFileDialog = New-Object windows.forms.openfiledialog   
+ $openFileDialog.initialDirectory = [System.IO.Directory]::GetCurrentDirectory()   
+ $openFileDialog.title = "Select the support document to Import"    
+ $openFileDialog.filter = "Excel Files|*.xls;*.xlsx;*.xlsm"; 
+ $openFileDialog.ShowHelp = $True 
+ $result1 = $openFileDialog.ShowDialog()  
+ $result1 
+    if($result1 -eq "OK")    
+        {     
+            $path = $OpenFileDialog.filename   
+            Write-Host "File Imported Successfully!" -ForegroundColor Green 
+            $path
+            #Copy-Item $path -Destination "C:\Temp\storageinfo.xlsx"
+            Break
+        } 
+        else { Write-Host "File Imported Cancelled!" -ForegroundColor Yellow
+        Break
+        }
+}
+if ($result -eq [System.Windows.Forms.DialogResult]::OK)
+{
+    $x = $textBox.Text   
+}
+else { Write-Host "Cancelled" 
+EXIT}
+
+if ($x -eq "") {[System.Windows.MessageBox]::Show('No Input, Please re-enter the Device info','Ooops!!')
+$x = "No Input"}
+
+Function Search_Device 
+{
+[cmdletbinding()]
+$Excel = New-Object -ComObject Excel.Application 
+$Workbook = $Excel.Workbooks.Open($path)
+$Excel.Visible = $false
+
+$zonefound = Import-Csv 'C:\Temp\zones.csv' | Where{$x -match $_.Server}
+if ($zonefound)
+{
+  $Arrname = $zonefound.Array
+  Write-Output "============================================================================"
+  Write-Output "                              Zoning Details                                "
+  Write-Output "============================================================================"
+[pscustomobject]@{
+    Server_Name = $x
+    Array_Name = $Arrname
+    }
+$x = $Arrname
+}
+ForEach ($Worksheet in @($Workbook.Sheets)) {
+$workSheet = $Workbook.Sheets.Item(1)
+$Found = $WorkSheet.Cells.Find($x.Trim())
+Write-Output "============================================================================"
+Write-Output "                              Array Details                                "
+Write-Output "============================================================================"
+IF ($Found) {
+$BeginAddress = $Found.Address(0,0,1,1)
+$Row = $Found.Row
+$Column = $Found.Column
+$ipp = $WorkSheet.Cells.Item($Row, 5 ).Text
+$ip1 = $ipp.TrimStart('3Parmgmr Console/ssh,ssh or https://') 
+Set-Clipboard -Value $ip1
+[pscustomobject]@{
+    Device_status = $Worksheet.Name
+    Serial_Number = $WorkSheet.Cells.Item($Row, 1 ).Text
+    Array_Name = $WorkSheet.Cells.Item($Row, 3 ).Text
+    IP_address = $WorkSheet.Cells.Item($Row, 5 ).Text
+    Cell = $WorkSheet.Cells.Item($Row, 2 ).Text
+    Site_ID = $WorkSheet.Cells.Item($Row, 4 ).Text
+    DCNM_Alias = $WorkSheet.Cells.Item($Row, 6 ).Text
+    Datamover_Alias = $WorkSheet.Cells.Item($Row, 8 ).Text
+    Location = $WorkSheet.Cells.Item($Row, 13 ).Text
+}
+Do {
+$Found = $WorkSheet.Cells.FindNext($Found)
+$Address = $Found.Address(0,0,1,1)
+If ($Address -eq $BeginAddress) {
+Break
+}
+$Row = $Found.Row
+$Column = $Found.Column
+[pscustomobject]@{
+    Device_status = $Worksheet.Name
+    Serial_Number = $WorkSheet.Cells.Item($Row, 1 ).Text
+    Array_Name = $WorkSheet.Cells.Item($Row, 3 ).Text
+    IP_address = $WorkSheet.Cells.Item($Row, 5 ).Text
+    Cell = $WorkSheet.Cells.Item($Row, 2 ).Text
+    Site_ID = $WorkSheet.Cells.Item($Row, 4 ).Text
+    DCNM_Alias = $WorkSheet.Cells.Item($Row, 6 ).Text
+    Datamover_Alias = $WorkSheet.Cells.Item($Row, 8 ).Text
+    Location = $WorkSheet.Cells.Item($Row, 13 ).Text
+}
+} Until ($false)
+BREAK
+}
+$workSheet = $Workbook.Sheets.Item(2)
+$Found1 = $WorkSheet.Cells.Find($x.Trim())
+IF ($Found1) 
+{
+$BeginAddress = $Found1.Address(0,0,1,1)
+$Row = $Found1.Row
+$Column = $Found1.Column
+$ipp = $WorkSheet.Cells.Item($Row, 7 ).Text
+$ip1 = $ipp.TrimStart('3Parmgmr Console/ssh,ssh or https://') 
+Set-Clipboard -Value $ip1
+[pscustomobject]@{
+    Device_status = $Worksheet.Name
+    Serial_Number = $WorkSheet.Cells.Item($Row, 1 ).Text
+    Date_Decommissioned = $WorkSheet.Cells.Item($Row, 5 ).Text
+    Array_ID = $WorkSheet.Cells.Item($Row, 3 ).Text
+    IP_address = $WorkSheet.Cells.Item($Row, 7 ).Text
+    Location = $WorkSheet.Cells.Item($Row, 2 ).Text
+    Site_ID = $WorkSheet.Cells.Item($Row, 6 ).Text
+    DCNM_Alias = $WorkSheet.Cells.Item($Row, 4 ).Text
+    Datamover_Alias = $WorkSheet.Cells.Item($Row, 9 ).Text
+}
+Do {
+$Found1 = $WorkSheet.Cells.FindNext($Found1)
+$Address = $Found1.Address(0,0,1,1)
+If ($Address -eq $BeginAddress) {
+Break
+}
+$Row = $Found1.Row
+$Column = $Found1.Column
+[pscustomobject]@{
+    Device_status = $Worksheet.Name
+    Serial_Number = $WorkSheet.Cells.Item($Row, 1 ).Text
+    Date_Decommissioned = $WorkSheet.Cells.Item($Row, 5 ).Text
+    Array_ID = $WorkSheet.Cells.Item($Row, 3 ).Text
+    IP_address = $WorkSheet.Cells.Item($Row, 7 ).Text
+    Location = $WorkSheet.Cells.Item($Row, 2 ).Text
+    Site_ID = $WorkSheet.Cells.Item($Row, 6 ).Text
+    DCNM_Alias = $WorkSheet.Cells.Item($Row, 4 ).Text
+    Datamover_Alias = $WorkSheet.Cells.Item($Row, 9 ).Text
+}
+} Until ($false)
+BREAK
+}
+}
+If (!($x.trim()::Exists))
+{
+Write-Output ("Not Found")
+}
+Write-Host ""
+Write-Output "============================================================================"
+$workbook.close($false)
+$Excel.Quit()
+$c = (Get-Process excel -ea 0).Count
+While ([System.Runtime.Interopservices.Marshal]::ReleaseComObject($Excel)){
+[System.Runtime.Interopservices.Marshal]::ReleaseComObject($Excel)}
+Start-Sleep 1
+[System.GC]::Collect()
+[System.GC]::WaitForPendingFinalizers()
+Remove-Variable excel -ErrorAction SilentlyContinue
+'Excel processes: {0}' -f @(Get-Process excel -ea 0).Count
+
+Write-Output "" 
+Write-Output "============================================================================"
+Write-Output "                              Excel Sync Status                             "
+Write-Output "============================================================================"
+Get-ScheduledTask -TaskName Snapshot_Support_excel | Get-ScheduledTaskInfo
+Write-Output "============================================================================"
+}
+Search_Device | Format-List |  Out-File -FilePath C:\Temp\output.txt
+C:\Temp\output.txt
+Start-Sleep 1
+}Until ($false)
