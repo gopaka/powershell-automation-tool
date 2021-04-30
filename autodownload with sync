@@ -1,0 +1,217 @@
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+
+if (!([System.IO.File]Exists('CTempAS_from_Sharepoint.xlsx')))
+{
+$client = new-object System.Net.WebClient
+$client.Credentials = Get-Credential
+$client.DownloadFile(“httpkgssps.in.kworld.kpmg.cominKGSStorage-BackupShared%20DocumentsStorage%20TeamtestAS_from_Sharepoint.xlsx”,“CTempAS_from_Sharepoint.xlsx”)
+Start-Sleep 3
+Write-Host File imported successfull, Please rerun!
+}
+#else{
+$path = CTempAS_from_Sharepoint.xlsx
+$form = New-Object System.Windows.Forms.Form
+$form.Text = 'Data Entry Form'
+$form.Size = New-Object System.Drawing.Size(300,200)
+$form.StartPosition = 'CenterScreen'
+
+$okButton = New-Object System.Windows.Forms.Button
+$okButton.Location = New-Object System.Drawing.Point(10,120)
+$okButton.Size = New-Object System.Drawing.Size(75,23)
+$okButton.Text = 'OK'
+$okButton.DialogResult = [System.Windows.Forms.DialogResult]OK
+$form.AcceptButton = $okButton
+$form.Controls.Add($okButton)
+
+$Browse = New-Object System.Windows.Forms.Button
+$Browse.Location = New-Object System.Drawing.Point(200,120)
+$Browse.Size = New-Object System.Drawing.Size(75,23)
+$Browse.Text = 'Browse'
+$Browse.DialogResult = [System.Windows.Forms.DialogResult]Yes
+$form.AcceptButton = $Browse
+$form.Controls.Add($Browse)
+
+$cancelButton = New-Object System.Windows.Forms.Button
+$cancelButton.Location = New-Object System.Drawing.Point(105,120)
+$cancelButton.Size = New-Object System.Drawing.Size(75,23)
+$cancelButton.Text = 'Cancel'
+$cancelButton.DialogResult = [System.Windows.Forms.DialogResult]Cancel
+$form.CancelButton = $cancelButton
+$form.Controls.Add($cancelButton)
+
+$label = New-Object System.Windows.Forms.Label
+$label.Location = New-Object System.Drawing.Point(30,20)
+$label.Size = New-Object System.Drawing.Size(280,20)
+$label.Text = 'Enter the Device details to search'
+$form.Controls.Add($label)
+
+$textBox = New-Object System.Windows.Forms.TextBox
+$textBox.Location = New-Object System.Drawing.Point(10,40)
+$textBox.Size = New-Object System.Drawing.Size(260,100)
+$form.Controls.Add($textBox)
+
+$form.Topmost = $true
+
+$form.Add_Shown({$textBox.Select()})
+$result = $form.ShowDialog()
+
+if ($result -eq [System.Windows.Forms.DialogResult]Yes)
+{
+ $openFileDialog = New-Object windows.forms.openfiledialog   
+ $openFileDialog.initialDirectory = [System.IO.Directory]GetCurrentDirectory()   
+ $openFileDialog.title = Select the support document to Import    
+ $openFileDialog.filter = Excel Files.xls;.xlsx;.xlsm; 
+ $openFileDialog.ShowHelp = $True 
+ $result1 = $openFileDialog.ShowDialog()  
+ $result1 
+    if($result1 -eq OK)    
+        {     
+            $path = $OpenFileDialog.filename   
+            Write-Host File Imported Successfully! -ForegroundColor Green 
+            $path
+            #Copy-Item $path -Destination CTempsupportfile.xlsx
+            Break
+        } 
+        else { Write-Host File Imported Cancelled! -ForegroundColor Yellow
+        Break
+        }
+}
+
+if ($result -eq [System.Windows.Forms.DialogResult]OK)
+{
+    $x = $textBox.Text   
+}
+else { Write-Host Cancelled 
+EXIT}
+
+if ($x -eq ) {Write-Host  No input 
+EXIT
+}
+
+Function Search_Device 
+{
+[cmdletbinding()]
+$Excel = New-Object -ComObject Excel.Application 
+$Workbook = $Excel.Workbooks.Open($path)
+$Excel.Visible = $false
+
+# Loop for each WorkSheet
+ForEach ($Worksheet in @($Workbook.Sheets)) {
+
+$workSheet = $Workbook.Sheets.Item(1)
+$Found = $WorkSheet.Cells.Find($x.Trim())
+
+IF ($Found) {
+
+$BeginAddress = $Found.Address(0,0,1,1)
+$Row = $Found.Row
+$Column = $Found.Column
+
+$ip1 = $WorkSheet.Cells.Item($Row, 5 ).Text
+$ipp = $ip1.Trim(3Parmgmr Consolessh)
+$ipp = $ip1.Trim(ssh or https)
+Set-Clipboard -Value $ipp
+
+[pscustomobject]@{
+    Device_status = $Worksheet.Name
+    Serial_Number = $WorkSheet.Cells.Item($Row, 1 ).Text
+    Array_Name = $WorkSheet.Cells.Item($Row, 3 ).Text
+    IP_address = $WorkSheet.Cells.Item($Row, 5 ).Text
+    Cell = $WorkSheet.Cells.Item($Row, 2 ).Text
+    Site_ID = $WorkSheet.Cells.Item($Row, 4 ).Text
+    DCNM_Alias = $WorkSheet.Cells.Item($Row, 6 ).Text
+    Datamover_Alias = $WorkSheet.Cells.Item($Row, 8 ).Text
+    Location = $WorkSheet.Cells.Item($Row, 13 ).Text
+}
+Do {
+
+$Found = $WorkSheet.Cells.FindNext($Found)
+$Address = $Found.Address(0,0,1,1)
+If ($Address -eq $BeginAddress) {
+Break
+}
+
+$Row = $Found.Row
+$Column = $Found.Column
+
+[pscustomobject]@{
+    Device_status = $Worksheet.Name
+    Serial_Number = $WorkSheet.Cells.Item($Row, 1 ).Text
+    Array_Name = $WorkSheet.Cells.Item($Row, 3 ).Text
+    IP_address = $WorkSheet.Cells.Item($Row, 5 ).Text
+    Cell = $WorkSheet.Cells.Item($Row, 2 ).Text
+    Site_ID = $WorkSheet.Cells.Item($Row, 4 ).Text
+    DCNM_Alias = $WorkSheet.Cells.Item($Row, 6 ).Text
+    Datamover_Alias = $WorkSheet.Cells.Item($Row, 8 ).Text
+    Location = $WorkSheet.Cells.Item($Row, 13 ).Text
+}
+} Until ($false)
+
+BREAK
+}
+$workSheet = $Workbook.Sheets.Item(2)
+$Found1 = $WorkSheet.Cells.Find($x.Trim())
+IF ($Found1) 
+{
+$BeginAddress = $Found1.Address(0,0,1,1)
+$Row = $Found1.Row
+$Column = $Found1.Column
+
+$ip1 = $WorkSheet.Cells.Item($Row, 7 ).Text
+$ipp = $ip1.Trim(3Parmgmr Consolessh)
+$ipp = $ip1.Trim(ssh or https)
+Set-Clipboard -Value $ipp
+
+[pscustomobject]@{
+    Device_status = $Worksheet.Name
+    Serial_Number = $WorkSheet.Cells.Item($Row, 1 ).Text
+    Date_Decommissioned = $WorkSheet.Cells.Item($Row, 5 ).Text
+    Array_ID = $WorkSheet.Cells.Item($Row, 3 ).Text
+    IP_address = $WorkSheet.Cells.Item($Row, 7 ).Text
+    Location = $WorkSheet.Cells.Item($Row, 2 ).Text
+    Site_ID = $WorkSheet.Cells.Item($Row, 6 ).Text
+    DCNM_Alias = $WorkSheet.Cells.Item($Row, 4 ).Text
+    Datamover_Alias = $WorkSheet.Cells.Item($Row, 9 ).Text
+}
+Do {
+
+$Found1 = $WorkSheet.Cells.FindNext($Found1)
+$Address = $Found1.Address(0,0,1,1)
+If ($Address -eq $BeginAddress) {
+Break
+}
+
+$Row = $Found1.Row
+$Column = $Found1.Column
+
+[pscustomobject]@{
+    Device_status = $Worksheet.Name
+    Serial_Number = $WorkSheet.Cells.Item($Row, 1 ).Text
+    Date_Decommissioned = $WorkSheet.Cells.Item($Row, 5 ).Text
+    Array_ID = $WorkSheet.Cells.Item($Row, 3 ).Text
+    IP_address = $WorkSheet.Cells.Item($Row, 7 ).Text
+    Location = $WorkSheet.Cells.Item($Row, 2 ).Text
+    Site_ID = $WorkSheet.Cells.Item($Row, 6 ).Text
+    DCNM_Alias = $WorkSheet.Cells.Item($Row, 4 ).Text
+    Datamover_Alias = $WorkSheet.Cells.Item($Row, 9 ).Text
+}
+} Until ($false)
+BREAK
+}
+}
+Write-Host 
+$workbook.close($false)
+$Excel.Quit()
+$c = (Get-Process excel -ea 0).Count
+While ([System.Runtime.Interopservices.Marshal]ReleaseComObject($Excel)){
+[System.Runtime.Interopservices.Marshal]ReleaseComObject($Excel)}
+Start-Sleep 1
+[System.GC]Collect()
+[System.GC]WaitForPendingFinalizers()
+Remove-Variable excel -ErrorAction SilentlyContinue
+'Excel processes {0}' -f @(Get-Process excel -ea 0).Count
+}
+Search_Device -Source $FilePath -SearchText $x  Format-List
+#}
+
