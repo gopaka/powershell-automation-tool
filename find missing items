@@ -1,0 +1,52 @@
+Function Search_server 
+{
+[cmdletbinding()]
+#$data = "USMDCEPAP70169"
+$path = "C:\Users\arungopakumar1\Desktop\Bussy season Automation\test.xlsx"
+$path1 = "C:\Users\arungopakumar1\Desktop\Bussy season Automation\Serverlist_to_fill.xlsx"
+$Excel = New-Object -ComObject Excel.Application 
+$Excel1 = New-Object -ComObject Excel.Application 
+$Workbook = $Excel.Workbooks.Open($path)
+$Workbook1 = $Excel1.Workbooks.Open($path1)
+$Excel.Visible = $false
+$Excel1.Visible = $false
+$WorkSheet = $workbook.ActiveSheet
+$WorkSheet1 = $Workbook1.Sheets.Item(1)
+[int]$lastRowvalue = ($WorkSheet.UsedRange.rows.count)
+Write-Host $lastRowvalue
+
+#ForEach ($WorkSheet1 in @($Workbook1.Sheets)) {
+for ($i=1;$i -lt $lastRowvalue ;$i++)
+{
+$server = $WorkSheet.Cells.Item($i, 1 ).Text
+#Write-Host $server
+$Found = $WorkSheet1.Cells.Find($server)
+$fou= $Found.text
+$row = $Found.Row
+#$name = $WorkSheet1.Cells.Item($row, 2 ).Text
+Write-Host $fou
+#Write-Host $name 
+$Found = ""
+$WorkSheet1.Cells.Item($row ,8)= "found"
+$Excel1.DisplayAlerts = $false
+$Workbook1.save()
+#$Excel1.Workbook1.SaveAs('C:\Users\arungopakumar1\Desktop\Bussy season Automation\Serverlist_to_fill.xls')
+#$Excel1.Saved = $true
+}
+$Workbook.close
+$Workbook1.close
+$Excel.Quit()
+$Excel1.Quit()
+While ([System.Runtime.Interopservices.Marshal]::ReleaseComObject($Excel)){
+[System.Runtime.Interopservices.Marshal]::ReleaseComObject($Excel)}
+While ([System.Runtime.Interopservices.Marshal]::ReleaseComObject($Excel1)){
+[System.Runtime.Interopservices.Marshal]::ReleaseComObject($Excel1)}
+Start-Sleep 1
+}
+Search_server
+
+$c = (Get-Process excel -ea 0).Count
+[System.GC]::Collect()
+[System.GC]::WaitForPendingFinalizers()
+Remove-Variable excel -ErrorAction SilentlyContinue
+'Excel processes: {0}' -f @(Get-Process excel -ea 0).Count
